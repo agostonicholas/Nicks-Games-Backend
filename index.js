@@ -25,6 +25,7 @@ app.post('/login', (req, res) => {
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
         res.json({ success: true, username });
+        console.log(`User ${username} logged in successfully.`);
     } else {
         res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
