@@ -9,7 +9,7 @@ const SCORE_FILE = path.join(__dirname, "scores.json");
 app.use(express.json());
 
 app.use(cors({
-    origin: "https://agostonicholas.github.io"
+    origin: "https://agostonicholas.github.io", "http://127.0.0.1:5500/"
 }));
 
 if (!fs.existsSync(SCORE_FILE)) {
