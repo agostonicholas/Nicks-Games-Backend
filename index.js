@@ -6,12 +6,14 @@ const app = express();
 const PORT = process.env.port || 5000;
 const SCORE_FILE = path.join(__dirname, "scores.json");
 
-app.use(express.json());
-
 app.use(cors({
     origin: ["https://agostonicholas.github.io",
     "http://127.0.0.1:5500"]
 }));
+
+app.use(express.json());
+
+
 
 if (!fs.existsSync(SCORE_FILE)) {
   fs.writeFileSync(SCORE_FILE, JSON.stringify({}));
