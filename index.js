@@ -14,8 +14,6 @@ app.use(cors({
 
 app.use(express.json());
 
-const usersJSON = path.join(__dirname, 'users.json');
-
 if (!fs.existsSync(SCORE_FILE)) {
   fs.writeFileSync(SCORE_FILE, JSON.stringify({}));
 }
@@ -33,12 +31,13 @@ async function saveUsers(users) {
 }
 
 app.post('/login', async (req, res) => {
+    const username = String(req.body.username || '').trim().toLowerCase();
+    const password = String(req.body.password || '').trim();
+    
     if (!username || !password){
         return res.status(400).json({ success: false, message: 'Invalid Username and Password'});
     }
 
-    const username = String(req.body.username || '').trim().toLowerCase();
-    const password = String(req.body.password || '').trim();
     const users = await loadUsers()
     const user = users.find(u => u.username === username && bcrypt.compareSync(password, u.password));
     
@@ -51,23 +50,25 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/register', async (req, res) => {
-        try {
-            if (!username || !password) {
-                return res.status(400).json({ success: false, message: 'Invalid Username and Password' });
-            }
+    const username = String(req.body.username || '').trim().toLowerCase();
+            const password = String(req.body.password || '').trim();    
+    
+    try {
+        if (!username || !password) {
+            return res.status(400).json({ success: false, message: 'Invalid Username and Password' });
+        }
 
-            const username = String(req.body.username || '').trim().toLowerCase();
-            const password = String(req.body.password || '').trim();
-            const users = await loadUsers();
             
-            if (users.some(u => u.username === username)) {
-                return res.status(409).json({ success: false, message: 'User exists' });
-            } else {
-                const passwordHash = await bcrypt.hash(password, 12);
-                users.push({ username, passwordHash, createdAt: Date.now() });
-                await saveUsers(users);
-                return res.status(201).json({ success: true, username });
-            }
+        const users = await loadUsers();
+            
+        if (users.some(u => u.username === username)) {
+            return res.status(409).json({ success: false, message: 'User exists' });
+        } else {
+            const passwordHash = await bcrypt.hash(password, 12);
+            users.push({ username, passwordHash, createdAt: Date.now() });
+            await saveUsers(users);
+            return res.status(201).json({ success: true, username });
+        }
     } catch (error) {
         console.error('Error during registration:', error);
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
