@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const app = express();
 const PORT = process.env.port || 5000;
+const USERS_FILE = path.join(__dirname, "users.json");
 const SCORE_FILE = path.join(__dirname, "scores.json");
 const bcrypt = require("bcrypt");
 
