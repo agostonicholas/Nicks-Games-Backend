@@ -28,7 +28,7 @@ async function loadUsers() {
   }
 }
 async function saveUsers(users) {
-  fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
 }
 
 app.post('/login', async (req, res) => {
