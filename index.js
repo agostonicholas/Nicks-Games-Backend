@@ -1,11 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
+const fsp = require("fs").promises;
 const path = require("path");
 const app = express();
-const PORT = process.env.port || 5000;
-const USERS_FILE = path.join(__dirname, "users.json");
-const SCORE_FILE = path.join(__dirname, "scores.json");
+const USERS_FILE = path.join(__dirname, "users.json") || '[]';
+const SCORE_FILE = path.join(__dirname, "scores.json")|| '{}';
 const bcrypt = require("bcrypt");
 
 app.use(cors({
@@ -15,91 +15,156 @@ app.use(cors({
 
 app.use(express.json());
 
-if (!fs.existsSync(SCORE_FILE)) {
-  fs.writeFileSync(SCORE_FILE, JSON.stringify({}));
+if (!fs.existsSync(USERS_FILE)) {
+  fs.writeFileSync(USERS_FILE, "[]", "utf8");
 }
+if (!fs.existsSync(SCORE_FILE)) {
+  fs.writeFileSync(SCORE_FILE, "{}", "utf8");
+}
+
+// HELPER FUNCTIONS / / / / / / / /
 
 async function loadUsers() {
   try {
-    const txt = fs.readFile(USERS_FILE, 'utf8');
+    const txt = await fsp.readFile(USERS_FILE, 'utf8');   // NOTE: await + fsp
     return JSON.parse(txt || '[]');
-  } catch {
-    return [];
+  } catch (e) {
+    console.error('loadUsers error from', USERS_FILE, e.message);
+    return []; // or rethrow if you prefer
   }
 }
+
 async function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  await fsp.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  console.log('Users saved.');
 }
 
+async function loadScores() {
+  try {
+    const txt = await fsp.readFile(SCORE_FILE, "utf8");
+    return JSON.parse(txt || "{}");
+  } catch {
+    return {};
+  }
+}
+async function saveScores(scores) {
+  await fsp.writeFile(SCORE_FILE, JSON.stringify(scores, null, 2), "utf8");
+}
+
+// LOGIN / / / / / / / /
+
 app.post('/login', async (req, res) => {
+  try {
     const username = String(req.body.username || '').trim().toLowerCase();
     const password = String(req.body.password || '').trim();
-    
-    if (!username || !password){
-        return res.status(400).json({ success: false, message: 'Invalid Username and Password'});
+
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: 'Invalid Username and Password' });
     }
 
-    const users = await loadUsers()
-    const user = users.find(u => u.username === username && bcrypt.compareSync(password, u.password));
-    
-    if (user && bcrypt.compareSync(password, user.password)) {
-        console.log(`User ${username} logged in successfully.`);
-        return res.status(200).json({ success: true, username });
-    } else {
-        return res.status(401).json({ success: false, message: 'Invalid Username and Password' });
+    const users = await loadUsers();
+
+    // find by username
+    const user = users.find(u => u.username === username);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid Username and Password' });
     }
+
+    // compare input password to stored hash
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) {
+      return res.status(401).json({ success: false, message: 'Invalid Username and Password' });
+    }
+
+    // success
+    console.log(`User ${username} logged in successfully.`);
+    return res.status(200).json({ success: true, username });
+    
+  } catch (err) {
+    console.error('login error:', err);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
 });
+
+// REGISTER / / / / / / / /
 
 app.post('/register', async (req, res) => {
-    const username = String(req.body.username || '').trim().toLowerCase();
-            const password = String(req.body.password || '').trim();    
+  const username = String(req.body.username || '').trim().toLowerCase();
+  const password = String(req.body.password || '').trim();    
     
-    try {
-        if (!username || !password) {
-            return res.status(400).json({ success: false, message: 'Invalid Username and Password' });
-        }
+  try {
+    if (!username || !password) {
+  return res.status(400).json({ success: false, message: 'Invalid Username and Password' });
+}
+
+if (username.length < 2 || username.length > 4) {
+  return res.status(400).json({ success: false, message: 'Username must be between 2 and 4 characters' });
+}
+
+if (password.length < 6 || password.length > 20) {
+  return res.status(400).json({ success: false, message: 'Password must be between 6 and 20 characters' });
+}
 
             
-        const users = await loadUsers();
+    const users = await loadUsers();
             
-        if (users.some(u => u.username === username)) {
-            return res.status(409).json({ success: false, message: 'User exists' });
-        } else {
-            const passwordHash = await bcrypt.hash(password, 12);
-            users.push({ username, passwordHash, createdAt: Date.now() });
-            await saveUsers(users);
-            return res.status(201).json({ success: true, username });
-        }
-    } catch (error) {
-        console.error('Error during registration:', error);
-        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    if (users.some(u => u.username === username)) { // if user exists
+      return res.status(409).json({ success: false, message: 'User exists' });
+    } else { // else register user
+      const passwordHash = await bcrypt.hash(password, 12); // hash password
+      users.push({ username, passwordHash, createdAt: Date.now() }); // add user to array
+      await saveUsers(users); // save
+      console.log(`${username} registered.`);
+      return res.status(201).json({ success: true, username }); // respond
     }
+  } catch (error) {
+    console.error('Error during registration:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
 });
 
-app.post("/save-score", (req, res) => {
-    const { game, score } = req.body;
-    const SCORE_FILE = path.join(__dirname, "scores.json");
+// SAVE SCORE / / / / / / / /
 
-    if (!game || !score) {
-        return res.status(400).json({ error: "Game and score are required." });
-    }
+app.post('/api/save-score', async (req, res) => {
+  try {
+    const gameID  = String(req.body.id ?? '').trim();   // <-- from body, normalized
+    const username = String(req.body.username ?? 'guest').trim().toLowerCase();
+    const nScore  = Number(req.body.score);
 
-    fs.readFile(SCORE_FILE, "utf8", (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: "Failed to read scores file." });
-        }
+    if (!gameID) return res.status(400).json({ error: 'Game id is required' });
+    if (!Number.isFinite(nScore)) return res.status(400).json({ error: 'Score must be a number' });
 
-        let scores = JSON.parse(data || "{}");
-        scores[game] = score;
+    const scores = await loadScores();
+    scores[gameID] ||= [];
+    scores[gameID].push({ username, score: nScore, ts: Date.now() });
+    scores[gameID].sort((a, b) => b.score - a.score);
+    scores[gameID] = scores[gameID].slice(0, 5);
 
-        fs.writeFile(SCORE_FILE, JSON.stringify(scores, null, 2), "utf8", (err) => {
-            if (err) {
-                return res.status(500).json({ error: "Failed to save score." });
-            }
-            res.json({ message: "Score saved successfully." });
-        });
-    });
+    await saveScores(scores);
+
+    // IMPORTANT: return `id`, not `gameID`
+    return res.status(201).json({ success: true, id: gameID, top5: scores[gameID] });
+  } catch (err) {
+    console.error('save-score error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
+
+// LEADERBOARD / / / / / / / /
+
+app.get('/api/leaderboard/:id', async (req, res) => {
+  try {
+    const gameID = String(req.params.id);
+    const scores = await loadScores();
+    const topFive = (scores[gameID] || []).slice(0, 5);
+    return res.status(200).json({ id: gameID, top5: topFive });
+  } catch (e) {
+    console.error('leaderboard error:', e);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// PORT LISTENING / / / / / / / /
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
