@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cross-env NODE_ENV=test jest --runInBand",
+    "dev": "nodemon index.js",
     "start": "node index.js"
+  },
+  "jest":{
+    "testEnvironment": "node"
   },
   "keywords": [],
   "author": "Nicholas Agosto",
@@ -88,5 +92,9 @@
     "url": "https://github.com/agostonicholas/Nicks-Games-Backend/issues"
   },
   "homepage": "https://github.com/agostonicholas/Nicks-Games-Backend#readme",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "jest": "^30.0.5",
+    "supertest": "^7.1.4"
+  }
 }
