@@ -1,4 +1,4 @@
-const PORT = process.env.PORT || 3000;
+const PORT = 5000;
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
@@ -168,5 +168,5 @@ app.get('/api/leaderboard/:id', async (req, res) => {
 // PORT LISTENING / / / / / / / /
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
