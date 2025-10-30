@@ -11,7 +11,7 @@ const bcrypt = require("bcrypt");
 
 app.use(cors({
     origin: ["https://agostonicholas.github.io",
-    "http://127.0.0.1:5500"]
+    "http://127.0.0.1:3000"]
 }));
 
 app.use(express.json());
