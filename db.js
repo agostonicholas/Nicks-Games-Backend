@@ -80,7 +80,7 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS scores (
       score_id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
-      game_id TEXT NOT NULL,
+      game_id INTEGER NOT NULL,
       score INTEGER NOT NULL
     )
   `);
@@ -89,6 +89,19 @@ async function initDb() {
     ALTER TABLE scores
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   `);
+
+  if (!isTestEnv) {
+    try {
+      await pool.query(`
+        ALTER TABLE scores
+        ALTER COLUMN game_id TYPE INTEGER USING game_id::integer
+      `);
+    } catch (err) {
+      if (!/column.+of relation "scores"/i.test(String(err?.message || ""))) {
+        throw err;
+      }
+    }
+  }
 
   await ensureGuestUser();
 }

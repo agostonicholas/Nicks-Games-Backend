@@ -42,7 +42,7 @@ describe("Auth endpoints", () => {
 describe("Score endpoints", () => {
   test("rejects score submissions for unknown users", async () => {
     const res = await request(app).post("/api/save-score").send({
-      id: "pong",
+      id: 1,
       username: "zz",
       score: 42,
     });
@@ -51,14 +51,23 @@ describe("Score endpoints", () => {
     expect(res.body.error).toBe("User not found");
   });
 
+  test("requires numeric game ids", async () => {
+    const res = await request(app)
+      .post("/api/save-score")
+      .send({ id: "abc", score: 10 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/must be an integer/);
+  });
+
   test("creates a guest score when username omitted", async () => {
     const res = await request(app)
       .post("/api/save-score")
-      .send({ id: "pong", score: 123 });
+      .send({ id: 1, score: 123 });
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.id).toBe("pong");
+    expect(res.body.id).toBe(1);
     expect(res.body.top5[0].username).toBe("guest");
     expect(res.body.top5[0].score).toBe(123);
   });
@@ -83,17 +92,17 @@ describe("Score endpoints", () => {
 
     for (const entry of scores) {
       const submit = await request(app).post("/api/save-score").send({
-        id: "pong",
+        id: 1,
         username: entry.username,
         score: entry.score,
       });
       expect(submit.status).toBe(201);
     }
 
-    const leaderboardRes = await request(app).get("/api/leaderboard/pong");
+    const leaderboardRes = await request(app).get("/api/leaderboard/1");
 
     expect(leaderboardRes.status).toBe(200);
-    expect(leaderboardRes.body.id).toBe("pong");
+    expect(leaderboardRes.body.id).toBe(1);
     expect(leaderboardRes.body.top5).toHaveLength(5);
     expect(leaderboardRes.body.top5.map((s) => s.score)).toEqual([
       110, 90, 70, 50, 30,
@@ -107,14 +116,14 @@ describe("Score endpoints", () => {
     ]);
 
     await request(app).post("/api/save-score").send({
-      id: "brick",
+      id: 2,
       username: "aa",
       score: 999,
     });
 
-    const brickRes = await request(app).get("/api/leaderboard/brick");
+    const brickRes = await request(app).get("/api/leaderboard/2");
     expect(brickRes.status).toBe(200);
-    expect(brickRes.body.id).toBe("brick");
+    expect(brickRes.body.id).toBe(2);
     expect(brickRes.body.top5).toHaveLength(1);
     expect(brickRes.body.top5[0].username).toBe("aa");
     expect(brickRes.body.top5[0].score).toBe(999);

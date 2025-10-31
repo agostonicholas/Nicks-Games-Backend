@@ -98,14 +98,20 @@ app.post("/register", async (req, res) => {
 
 app.post("/api/save-score", async (req, res) => {
   try {
-    const gameID = String(req.body.id ?? "").trim();
+    const rawId = req.body.id;
+    if (rawId === undefined || rawId === null || rawId === "") {
+      return res.status(400).json({ error: "Game id is required" });
+    }
+    const gameID = Number(rawId);
     let username = String(req.body.username ?? "").trim().toLowerCase();
     if (!username) {
       username = "guest";
     }
     const nScore = Number(req.body.score);
 
-    if (!gameID) return res.status(400).json({ error: "Game id is required" });
+    if (!Number.isInteger(gameID)) {
+      return res.status(400).json({ error: "Game id must be an integer" });
+    }
     if (!Number.isFinite(nScore))
       return res.status(400).json({ error: "Score must be a number" });
 
@@ -131,7 +137,11 @@ app.post("/api/save-score", async (req, res) => {
 
 app.get("/api/leaderboard/:id", async (req, res) => {
   try {
-    const gameID = String(req.params.id);
+    const rawId = req.params.id;
+    const gameID = Number(rawId);
+    if (!rawId || !Number.isInteger(gameID)) {
+      return res.status(400).json({ error: "Game id must be an integer" });
+    }
     const topFive = await getTopScores(gameID, 5);
     return res.status(200).json({ id: gameID, top5: topFive });
   } catch (e) {
